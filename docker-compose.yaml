@@ -1,0 +1,74 @@
+version: '3.7'
+
+services:
+  kong:
+    image: "kong/kong-gateway:3.0"
+    container_name: api-gateway
+    user: "kong"
+    depends_on:
+      - kong-db
+    environment:
+      - KONG_ADMIN_LISTEN=${KONG_ADMIN_LISTEN}
+      - KONG_ADMIN_GUI_LISTEN=${KONG_ADMIN_GUI_LISTEN}
+      - KONG_CASSANDRA_CONTACT_POINTS=kong-db
+      - KONG_DATABASE=${KONG_DATABASE}
+      - KONG_PG_DATABASE=${KONG_PG_DATABASE}
+      - KONG_PG_HOST=${KONG_PG_HOST}
+      - KONG_PG_USER=${KONG_PG_USER}
+      - KONG_PG_PASSWORD=${KONG_PG_PASSWORD}
+      - KONG_LOG_LEVEL=${KONG_LOG_LEVEL}
+      - KONG_ADMIN_ACCESS_LOG=${KONG_ADMIN_ACCESS_LOG}
+      - KONG_ADMIN_ERROR_LOG=${KONG_ADMIN_ERROR_LOG}
+      - KONG_PROXY_ACCESS_LOG=${KONG_PROXY_ACCESS_LOG}
+      - KONG_PROXY_ERROR_LOG=${KONG_PROXY_ERROR_LOG}
+      - KONG_ADMIN_GUI_URL=${KONG_ADMIN_GUI_URL}
+      - KONG_PASSWORD=${KONG_PASSWORD}
+      - VIRTUAL_HOST=${VIRTUAL_HOST}
+      - LETSENCRYPT_HOST=${VIRTUAL_HOST}
+    ports:
+      - "8000:8000"
+      - "8433:8433"
+      - "8001:8001"
+      - "8002:8002"
+      - "8444:8444"
+      - "8445:8445"
+    networks:
+      - kong-net
+      - nginx-proxy
+
+  kong-db:
+    image: postgres:15-alpine
+    container_name: api-gateway-db
+    volumes:
+      - kong_db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${KONG_PG_DATABASE}
+      - POSTGRES_USER=${KONG_PG_USER}
+      - POSTGRES_PASSWORD=${KONG_PG_PASSWORD}
+    networks:
+      - kong-net
+
+  kong-migrations:
+    image: "kong/kong-gateway:3.0"
+    depends_on:
+      - kong-db
+    environment:
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=${KONG_PG_HOST}
+      - KONG_PG_DATABASE=${KONG_PG_DATABASE}
+      - KONG_PG_USER=${KONG_PG_USER}
+      - KONG_PG_PASSWORD=${KONG_PG_PASSWORD}
+      - KONG_PASSWORD=${KONG_PASSWORD}
+    links:
+      - kong-db:kong-db
+    command: kong migrations bootstrap
+    networks:
+      - kong-net
+
+volumes:
+  kong_db:
+
+networks:
+  kong-net:
+  nginx-proxy:
+    external: true
